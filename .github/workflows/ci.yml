@@ -12,16 +12,16 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-test:
+  check-lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -62,19 +62,16 @@ jobs:
       - name: Collect all Allure results
         run: |
           mkdir -p allure-results
+          # Копируем результаты из frontend
           if [ -d "frontend/allure-results" ]; then
             cp -r frontend/allure-results/* allure-results/ || true
           fi
+          # Копируем результаты из backend (проверяем все возможные места)
           find backend -type d -name "allure-results" -not -path "*/node_modules/*" | while read dir; do
             if [ -d "$dir" ] && [ "$(ls -A $dir 2>/dev/null)" ]; then
               cp -r "$dir"/* allure-results/ || true
             fi
           done
-
-      - name: Generate Allure Report
-        if: always()
-        run: |
-          allure generate allure-results --clean -o allure-report
 
       - name: Get Allure history from gh-pages
         if: always()
@@ -84,7 +81,16 @@ jobs:
           ref: gh-pages
           path: gh-pages
 
-      - name: Upload Allure Report as artifact
+      - name: Generate Allure Report with history
+        if: always()
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
+
+      - name: Upload Allure Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -97,4 +103,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-report
+          publish_dir: ./allure-history
