@@ -9,7 +9,7 @@ namespace Backend.Tests;
 [AllureParentSuite("Backend")]
 [AllureSuite("WeatherForecast")]
 [AllureSubSuite("Controller")]
-public class WeatherForecastControllerTests
+public class WeatherForecastControllerTestsFixed
 {
     [Test]
     public void Get_ReturnsWeatherForecasts()
@@ -37,8 +37,7 @@ public class WeatherForecastControllerTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        // СЛОМАННЫЙ ТЕСТ: проверяется что id равен 0, но передается 1
-        Assert.That(id, Is.EqualTo(0));
+        // ИСПРАВЛЕННЫЙ ТЕСТ: проверяется правильное значение id
+        Assert.That(id, Is.EqualTo(1));
     }
 }
-
