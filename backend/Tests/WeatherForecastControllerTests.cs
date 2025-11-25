@@ -9,7 +9,7 @@ namespace Backend.Tests;
 [AllureParentSuite("Backend")]
 [AllureSuite("WeatherForecast")]
 [AllureSubSuite("Controller")]
-public class WeatherForecastControllerTestsFixed
+public class WeatherForecastControllerTests
 {
     [Test]
     public void Get_ReturnsWeatherForecasts()
