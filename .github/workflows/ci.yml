@@ -12,11 +12,10 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  test-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -32,12 +31,10 @@ jobs:
       - name: Restore frontend dependencies
         working-directory: ./frontend
         run: npm ci
-        continue-on-error: true
 
       - name: Run frontend tests
         working-directory: ./frontend
         run: npm run test:allure -- --run
-        continue-on-error: true
         env:
           ALLURE_RESULTS_DIR: allure-results
 
@@ -51,7 +48,6 @@ jobs:
           mkdir -p allure-results
           export ALLURE_RESULTS_DIR=${{ github.workspace }}/backend/allure-results
           dotnet test Tests/Tests.csproj
-        continue-on-error: true
 
       - name: Download Allure CLI
         run: |
@@ -62,34 +58,44 @@ jobs:
 
       - name: Collect all Allure results
         run: |
-          mkdir -p allure-results
+          mkdir -p combined-allure-results
+          # Копируем результаты из frontend
           if [ -d "frontend/allure-results" ]; then
-            cp -r frontend/allure-results/* allure-results/ || true
+            cp -r frontend/allure-results/* combined-allure-results/ || true
           fi
+          # Копируем результаты из backend
           find backend -type d -name "allure-results" -not -path "*/node_modules/*" | while read dir; do
             if [ -d "$dir" ] && [ "$(ls -A $dir 2>/dev/null)" ]; then
-              cp -r "$dir"/* allure-results/ || true
+              cp -r "$dir"/* combined-allure-results/ || true
             fi
           done
 
-      - name: Get Allure history from gh-pages
-        if: always()
-        continue-on-error: true
+      - name: Get Allure history
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages
+        continue-on-error: true
 
-      - name: Upload Allure Report
-        if: always()
+      - name: Generate Allure report
+        run: |
+          # Копируем историю из gh-pages если есть
+          if [ -d "gh-pages/history" ]; then
+            mkdir -p combined-allure-results/history
+            cp -r gh-pages/history/* combined-allure-results/history/ || true
+          fi
+          # Генерируем отчет
+          allure generate combined-allure-results -o allure-report --clean
+
+      - name: Upload Allure Report artifact
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: allure-report
           retention-days: 30
 
-      - name: Deploy Allure Report to GitHub Pages
-        if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
